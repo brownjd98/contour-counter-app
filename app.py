@@ -1,3 +1,4 @@
+
 import cv2
 import numpy as np
 from PIL import Image
@@ -5,8 +6,8 @@ import streamlit as st
 
 def intelligent_score_contour(cnt, img_area, hierarchy, idx):
     area = cv2.contourArea(cnt)
-    if area < 15:
-        return 0  # eliminate tiny specks
+    if area < 10:
+        return 0  # eliminate very tiny specks
     hull_area = cv2.contourArea(cv2.convexHull(cnt))
     if hull_area == 0:
         return 0
@@ -17,18 +18,18 @@ def intelligent_score_contour(cnt, img_area, hierarchy, idx):
     is_hole = hierarchy[0][idx][3] != -1
 
     score = 0
-    if rel_area > 0.0004:
+    if rel_area > 0.00035:
         score += 1
-    if 0.25 < solidity <= 1.0:
+    if 0.20 < solidity <= 1.0:
         score += 1
-    if 0.15 < aspect_ratio < 8:
+    if 0.10 < aspect_ratio < 10:
         score += 1
     if is_hole:
         score += 1
     return score
 
-# Streamlit UI
-st.set_page_config(page_title="Intelligent Contour Detector", layout="centered")
+# Streamlit app UI
+st.set_page_config(page_title="Intelligent Logo Contour Counter", layout="centered")
 st.title("🧠 Intelligent Logo Contour Counter")
 
 uploaded_file = st.file_uploader("Upload a logo image", type=["jpg", "jpeg", "png"])
@@ -37,10 +38,10 @@ if uploaded_file:
     img_np = np.array(pil_img)
     img_area = img_np.shape[0] * img_np.shape[1]
 
-    # Binarize with margin for white backgrounds
+    # Binarize
     _, thresh = cv2.threshold(img_np, 180, 255, cv2.THRESH_BINARY_INV)
 
-    # Get contours including nested ones
+    # Find all contours
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     selected = []
@@ -48,7 +49,7 @@ if uploaded_file:
         if intelligent_score_contour(cnt, img_area, hierarchy, i) >= 3:
             selected.append(cnt)
 
-    # Visualize
+    # Draw preview
     preview = cv2.cvtColor(img_np, cv2.COLOR_GRAY2BGR)
     cv2.drawContours(preview, selected, -1, (0, 255, 0), 1)
 
