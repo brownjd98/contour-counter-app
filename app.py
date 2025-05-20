@@ -45,5 +45,5 @@ if uploaded_file:
     cv2.drawContours(preview, selected, -1, (0, 255, 0), 1)
 
     st.image(pil_img, caption="Uploaded Image", use_container_width=True)
-    st.success(f"Detected intelligent closed contours: {len(selected)}")
+    st.success(f"Detected # of closed contours: {len(selected)}")
     st.image(preview, caption="Filtered Contours", channels="BGR", use_container_width=True)
