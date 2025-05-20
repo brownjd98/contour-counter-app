@@ -18,18 +18,24 @@ if uploaded_file:
         11, 10
     )
 
-    # Find all contours including nested ones
+    # ✅ Find all contours including nested ones
     contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-
-    # Display original image and result
-    st.image(image, caption="Uploaded Image", use_container_width=True)
-    min_area = 200  # adjust this number as needed
+    # ✅ Filter by area
+    min_area = 1000  # Adjust to ignore small noise
     closed_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
-    st.success(f"Number of closed contours: {len(closed_contours)}")
 
+    # ✅ Display uploaded image
+    st.image(image, caption="Uploaded Image", use_container_width=True)
+    st.success(f"Number of closed contours (area > {min_area}): {len(closed_contours)}")
 
-    # Optional: Show contours overlay (helpful for visual debugging)
+    # ✅ Optional: show area of each large contour (for fine-tuning)
+    with st.expander("Show contour areas"):
+        for i, cnt in enumerate(closed_contours):
+            area = cv2.contourArea(cnt)
+            st.write(f"Contour {i + 1}: Area = {area:.2f}")
+
+    # ✅ Draw filtered contours on image
     preview = cv2.cvtColor(img_np, cv2.COLOR_GRAY2BGR)
     cv2.drawContours(preview, closed_contours, -1, (0, 255, 0), 1)
     st.image(preview, caption="Detected Contours", channels="BGR", use_container_width=True)
