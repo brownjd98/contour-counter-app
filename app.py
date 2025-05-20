@@ -3,17 +3,41 @@ import cv2
 import numpy as np
 from PIL import Image
 
-st.title("Closed Contour Counter (By: Jacob Brown)")
+def merge_overlapping(contours, overlap_thresh=0.2):
+    boxes = [cv2.boundingRect(cnt) for cnt in contours]
+    groups = []
+    used = [False] * len(boxes)
+
+    for i, (x1, y1, w1, h1) in enumerate(boxes):
+        if used[i]:
+            continue
+        group = [i]
+        xi1, yi1, xi2, yi2 = x1, y1, x1+w1, y1+h1
+        for j, (x2, y2, w2, h2) in enumerate(boxes):
+            if i == j or used[j]:
+                continue
+            xj1, yj1, xj2, yj2 = x2, y2, x2+w2, y2+h2
+            xa1, ya1 = max(xi1, xj1), max(yi1, yj1)
+            xa2, ya2 = min(xi2, xj2), min(yi2, yj2)
+            inter_area = max(0, xa2 - xa1) * max(0, ya2 - ya1)
+            union_area = w1*h1 + w2*h2 - inter_area
+            iou = inter_area / float(union_area)
+            if iou > overlap_thresh:
+                group.append(j)
+                used[j] = True
+        used[i] = True
+        groups.append(group)
+    return groups
+
+st.title("Smart Closed Contour Counter (Grouped)")
 
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
 if uploaded_file:
-    # Load image and grayscale
     image = Image.open(uploaded_file).convert("L")
     img = np.array(image)
     h, w = img.shape
     img_area = h * w
 
-    # Threshold
     thresh = cv2.adaptiveThreshold(
         img, 255,
         cv2.ADAPTIVE_THRESH_MEAN_C,
@@ -21,41 +45,25 @@ if uploaded_file:
         11, 10
     )
 
-    # Find all contours (including holes and children)
-    contours, hierarchy = cv2.findContours(
-        thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-    )
+    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    filtered_contours = []
+    # Filter small and huge noise
+    valid_contours = []
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if area < img_area * 0.002 or area > img_area * 0.7:
-            continue  # remove noise or giant background shapes
-
-        x, y, w_box, h_box = cv2.boundingRect(cnt)
-        ar = w_box / h_box
-        if ar < 0.15 or ar > 10:
-            continue  # ignore strange skinny fragments
-
-        hull = cv2.convexHull(cnt)
-        hull_area = cv2.contourArea(hull)
-        if hull_area == 0:
+        if area < img_area * 0.001 or area > img_area * 0.7:
             continue
-        solidity = area / hull_area
-        if solidity < 0.3:
-            continue  # exclude wobbly noise
+        valid_contours.append(cnt)
 
-        filtered_contours.append(cnt)
+    # Merge overlapping contours to count grouped objects
+    groups = merge_overlapping(valid_contours)
 
-    # Display output
-    st.image(image, caption="Uploaded Image", use_container_width=True)
-    st.success(f"Detected closed contours (filtered): {len(filtered_contours)}")
-
-    with st.expander("Contour details"):
-        for i, cnt in enumerate(filtered_contours, 1):
-            st.write(f"#{i}: Area = {cv2.contourArea(cnt):.0f}")
-
-    # Draw contours
+    # Draw one contour from each group
     preview = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(preview, filtered_contours, -1, (0, 255, 0), 2)
-    st.image(preview, caption="Filtered Contours", channels="BGR", use_container_width=True)
+    for group in groups:
+        cv2.drawContours(preview, [valid_contours[group[0]]], -1, (0, 255, 0), 2)
+
+    st.image(image, caption="Uploaded Image", use_container_width=True)
+    st.success(f"Estimated distinct closed shapes: {len(groups)}")
+
+    st.image(preview, caption="Grouped Contours", channels="BGR", use_container_width=True)
