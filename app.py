@@ -13,5 +13,5 @@ if uploaded_file:
     _, thresh = cv2.threshold(img_np, 127, 255, cv2.THRESH_BINARY_INV)
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
     st.success(f"Number of closed contours: {len(contours)}")
