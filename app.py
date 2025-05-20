@@ -18,8 +18,9 @@ if uploaded_file:
         11, 10
     )
 
-    # Find contours
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Find all contours including nested ones
+    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
 
     # Display original image and result
     st.image(image, caption="Uploaded Image", use_container_width=True)
