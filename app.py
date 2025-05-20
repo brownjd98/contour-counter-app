@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-st.title("Closed Contour Counter (Include Holes & Inner Parts)")
+st.title("Closed Contour Counter (By: Jacob Brown)")
 
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
 if uploaded_file:
