@@ -28,7 +28,7 @@ def intelligent_score_contour(cnt, img_area, hierarchy, idx):
     return score
 
 st.set_page_config(page_title="Contour Counter AI", layout="centered")
-st.title("🧠 Intelligent Closed Contour Counter")
+st.title("Logo Closed Contour Counter")
 
 uploaded_file = st.file_uploader("Upload a logo image", type=["jpg", "jpeg", "png"])
 if uploaded_file:
