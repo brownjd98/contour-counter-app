@@ -24,9 +24,12 @@ if uploaded_file:
 
     # Display original image and result
     st.image(image, caption="Uploaded Image", use_container_width=True)
-    st.success(f"Number of closed contours: {len(contours)}")
+    min_area = 200  # adjust this number as needed
+    closed_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
+    st.success(f"Number of closed contours: {len(closed_contours)}")
+
 
     # Optional: Show contours overlay (helpful for visual debugging)
     preview = cv2.cvtColor(img_np, cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(preview, contours, -1, (0, 255, 0), 1)
+    cv2.drawContours(preview, closed_contours, -1, (0, 255, 0), 1)
     st.image(preview, caption="Detected Contours", channels="BGR", use_container_width=True)
