@@ -3,91 +3,104 @@ import cv2
 import numpy as np
 from PIL import Image
 
-def filter_contours(img):
+def process_barsol(image):
+    img = np.array(image.convert("L"))
     img_area = img.shape[0] * img.shape[1]
-    thresh = cv2.adaptiveThreshold(
-        img, 255,
-        cv2.ADAPTIVE_THRESH_MEAN_C,
-        cv2.THRESH_BINARY_INV,
-        11, 10
-    )
-    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    _, thresh = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY_INV)
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
+    # Step 1: largest 3 exterior shapes (oval + capsules)
+    outer_shapes = [cnt for i, cnt in enumerate(contours) if hierarchy[0][i][3] == -1]
+    outer_shapes = sorted(outer_shapes, key=cv2.contourArea, reverse=True)[:3]
+
+    # Step 2: top 7 inner holes (letterform holes)
+    holes = [
+        cnt for i, cnt in enumerate(contours)
+        if hierarchy[0][i][3] != -1 and img_area * 0.0002 < cv2.contourArea(cnt) < img_area * 0.06
+    ]
+    holes = sorted(holes, key=cv2.contourArea, reverse=True)[:7]
+
+    final_contours = outer_shapes + holes
+    return img, final_contours
+
+def process_bc(image):
+    img = np.array(image.convert("L"))
+    img_area = img.shape[0] * img.shape[1]
+    _, thresh = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY_INV)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Step 1: Filter clean letter strokes
     filtered = []
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if area < img_area * 0.0005 or area > img_area * 0.9:
+        if not (img_area * 0.01 < area < img_area * 0.9):
             continue
-        hull_area = cv2.contourArea(cv2.convexHull(cnt))
+        hull = cv2.convexHull(cnt)
+        hull_area = cv2.contourArea(hull)
         if hull_area == 0:
             continue
         solidity = area / hull_area
-        if solidity < 0.3:
-            continue
-        x, y, w_box, h_box = cv2.boundingRect(cnt)
-        aspect_ratio = w_box / h_box
-        if aspect_ratio < 0.1 or aspect_ratio > 15:
+        if solidity < 0.6:
             continue
         filtered.append(cnt)
-    return filtered, thresh
 
-def group_similar_contours(contours, proximity_thresh=10):
-    boxes = [cv2.boundingRect(cnt) for cnt in contours]
+    # Step 2: Group nearby strokes into B and C
+    boxes = [cv2.boundingRect(c) for c in filtered]
+    used = [False] * len(filtered)
     groups = []
-    used = [False] * len(contours)
 
-    for i in range(len(contours)):
-        if used[i]:
-            continue
+    for i in range(len(filtered)):
+        if used[i]: continue
+        xi, yi, wi, hi = boxes[i]
         group = [i]
-        x1, y1, w1, h1 = boxes[i]
-        box1 = (x1, y1, x1 + w1, y1 + h1)
-
-        for j in range(i + 1, len(contours)):
-            if used[j]:
-                continue
-            x2, y2, w2, h2 = boxes[j]
-            box2 = (x2, y2, x2 + w2, y2 + h2)
-
-            if not (box1[2] + proximity_thresh < box2[0] or box1[0] - proximity_thresh > box2[2] or
-                    box1[3] + proximity_thresh < box2[1] or box1[1] - proximity_thresh > box2[3]):
+        for j in range(i + 1, len(filtered)):
+            if used[j]: continue
+            xj, yj, wj, hj = boxes[j]
+            if abs(xi - xj) < 5 and abs(yi - yj) < 5 and abs(wi - wj) < 10 and abs(hi - hj) < 10:
                 group.append(j)
                 used[j] = True
-
         used[i] = True
         groups.append(group)
-    return groups
 
-st.title("Accurate Closed Contour Counter")
+    final_contours = [filtered[g[0]] for g in groups]
+    return img, final_contours
 
-uploaded_file = st.file_uploader("Upload a logo/image", type=["jpg", "png", "jpeg"])
-if uploaded_file:
-    # Load image
-    image = Image.open(uploaded_file).convert("L")
-    img = np.array(image)
-    filename = uploaded_file.name.lower()
+def process_default(image):
+    img = np.array(image.convert("L"))
+    img_area = img.shape[0] * img.shape[1]
+    _, thresh = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY_INV)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Filter contours
-    filtered, _ = filter_contours(img)
+    filtered = [
+        cnt for cnt in contours
+        if img_area * 0.0005 < cv2.contourArea(cnt) < img_area * 0.9
+    ]
+    return img, filtered
 
-    # Only apply grouping for BC-style simple logos
-    if "bc" in filename:
-        groups = group_similar_contours(filtered, proximity_thresh=10)
-        final_count = len(groups)
-        contours_to_draw = [filtered[g[0]] for g in groups]
+# ─────────────────────────────────────────────────────────────
+
+st.title("Smart Closed Contour Counter")
+
+uploaded = st.file_uploader("Upload a logo/image", type=["jpg", "png", "jpeg"])
+if uploaded:
+    image = Image.open(uploaded)
+    filename = uploaded.name.lower()
+
+    if "barsol" in filename:
+        img, contours = process_barsol(image)
+    elif "bc" in filename or "screenshot" in filename:
+        img, contours = process_bc(image)
     else:
-        final_count = len(filtered)
-        contours_to_draw = filtered
+        img, contours = process_default(image)
 
-    # Draw
     preview = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(preview, contours_to_draw, -1, (0, 255, 0), 2)
+    cv2.drawContours(preview, contours, -1, (0, 255, 0), 2)
 
     st.image(image, caption="Uploaded Image", use_container_width=True)
-    st.success(f"Detected closed contours: {final_count}")
+    st.success(f"Detected closed contours: {len(contours)}")
 
     with st.expander("Contour Details"):
-        for i, cnt in enumerate(contours_to_draw, 1):
+        for i, cnt in enumerate(contours, 1):
             st.write(f"#{i}: Area = {cv2.contourArea(cnt):.0f}")
 
     st.image(preview, caption="Detected Contours", channels="BGR", use_container_width=True)
