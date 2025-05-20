@@ -28,7 +28,7 @@ def intelligent_score_contour(cnt, img_area, hierarchy, idx):
     return score
 
 st.set_page_config(page_title="Contour Counter AI", layout="centered")
-st.title("Logo Closed Contour Counter")
+#st.title("Logo Closed Contour Counter")
 st.markdown("""
 # Logo Closed Contour Counter  
 <small>By: Jacob Brown</small>  
