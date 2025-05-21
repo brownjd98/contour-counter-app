@@ -29,7 +29,7 @@ def intelligent_score_contour(cnt, img_area, hierarchy, idx):
 
 st.set_page_config(page_title="Contour Counter AI", layout="centered")
 st.markdown("""
-# Logo Closed Contour Counter  
+# Closed Contour Counter  
 <small>By: Jacob Brown</small>  
 <small>Date: 05/20/2025</small>
 """, unsafe_allow_html=True)
