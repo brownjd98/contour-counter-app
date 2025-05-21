@@ -28,7 +28,6 @@ def intelligent_score_contour(cnt, img_area, hierarchy, idx):
     return score
 
 st.set_page_config(page_title="Contour Counter AI", layout="centered")
-#st.title("Logo Closed Contour Counter")
 st.markdown("""
 # Logo Closed Contour Counter  
 <small>By: Jacob Brown</small>  
@@ -37,14 +36,20 @@ st.markdown("""
 
 uploaded_file = st.file_uploader("Upload a logo image", type=["jpg", "jpeg", "png"])
 if uploaded_file:
+    # Threshold slider
+    user_threshold = st.slider("Threshold Value", 0, 255, 180, 1)
+
     pil_img = Image.open(uploaded_file).convert("L")
     img_np = np.array(pil_img)
     img_area = img_np.shape[0] * img_np.shape[1]
 
-    _, thresh = cv2.threshold(img_np, 180, 255, cv2.THRESH_BINARY_INV)
+    # Use the selected threshold value
+    _, thresh = cv2.threshold(img_np, user_threshold, 255, cv2.THRESH_BINARY_INV)
+
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    selected = [cnt for i, cnt in enumerate(contours) if intelligent_score_contour(cnt, img_area, hierarchy, i) >= 3]
+    selected = [cnt for i, cnt in enumerate(contours)
+                if intelligent_score_contour(cnt, img_area, hierarchy, i) >= 3]
 
     preview = cv2.cvtColor(img_np, cv2.COLOR_GRAY2BGR)
     cv2.drawContours(preview, selected, -1, (0, 255, 0), 1)
