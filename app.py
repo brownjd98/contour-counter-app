@@ -41,7 +41,7 @@ if uploaded_file:
     img_np = np.array(pil_img)
     img_area = img_np.shape[0] * img_np.shape[1]
 
-    _, thresh = cv2.threshold(img_np, 100, 255, cv2.THRESH_BINARY_INV)
+    _, thresh = cv2.threshold(img_np, 110, 255, cv2.THRESH_BINARY_INV)
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     selected = [cnt for i, cnt in enumerate(contours) if intelligent_score_contour(cnt, img_area, hierarchy, i) >= 3]
